@@ -1,48 +1,59 @@
-import React, { useState } from "react";
+// src/App.js
+import React, { useState, useRef } from "react";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
 
-function App() {
-  const [game, setGame] = useState(new Chess());
-  const [fen, setFen]   = useState(game.fen());
+export default function App() {
+  const game = useRef(new Chess());
+  const [fen, setFen] = useState(game.current.fen());
+  const [status, setStatus] = useState("");  // 상태 메시지
 
-  // 동기 콜백: 즉시 true/false 리턴
-  const onPieceDrop = (source, target) => {
-    const g = new Chess(game.fen());
-    const move = g.move({ from: source, to: target, promotion: "q" });
-    if (!move) return false;    // 불가능한 수면 false
+  const onPieceDrop = ({ sourceSquare, targetSquare }) => {
+    const move = game.current.move({
+      from: sourceSquare,
+      to:   targetSquare,
+      promotion: "q",
+    });
+    if (!move) {
+      setStatus("잘못된 수라 되돌려집니다.");
+      return false;
+    }
 
-    // 로컬 state 바로 업데이트
-    setGame(g);
-    setFen(g.fen());
+    const newFen = game.current.fen();
+    setFen(newFen);
 
-    // --- 여기서부터 비동기 엔진 호출 ---
-    fetch("http://localhost:8000/bestmove", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fen: g.fen() }),
-    })
-      .then(res => res.json())
-      .then(data => {
-        const g2 = new Chess(g.fen());
-        g2.move(data.move);
-        setGame(g2);
-        setFen(g2.fen());
-      })
-      .catch(err => console.error("엔진 호출 에러:", err));
+    // 체크메이트 먼저 검사
+    if (game.current.isCheckmate()) {
+      setStatus("체크메이트! 게임 종료");
+    }
+    // 체크 상태이면
+    else if (game.current.isCheck()) {
+      setStatus("체크!");
+    }
+    // 그 외에는 메시지 지우기
+    else {
+      setStatus("");
+    }
 
-    return true;  // 드롭 허용
+    return true;
   };
 
   return (
     <div style={{ width: 400, margin: "auto", paddingTop: 20 }}>
       <Chessboard
-        position={fen}
-        onPieceDrop={onPieceDrop}
-        arePiecesDraggable={true}  // 드래그 허용
+        options={{
+          position: fen,
+          boardWidth: 400,
+          arePiecesDraggable: true,
+          onPieceDrop,
+        }}
       />
+      {/* 상태 메시지 영역 */}
+      {status && (
+        <div style={{ marginTop: 10, textAlign: "center", fontWeight: "bold" }}>
+          {status}
+        </div>
+      )}
     </div>
   );
 }
-
-export default App;
