@@ -5,6 +5,9 @@ import StatusMessage from './StatusMessage';
 import History from './History';
 import AnalysisPanel from './AnalysisPanel';
 
+const BOARD_WIDTH = 350;
+const BOARD_MAX_WIDTH = 800;
+
 export default function App() {
   const game = useRef(new Chess());
   const [fen, setFen] = useState(game.current.fen());
@@ -58,13 +61,18 @@ export default function App() {
 
   // ==== 렌더링 ===========================================
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: 20 }}>
-      <div style={{ width: 400, marginRight: 20 }}>
-        <Board fen={fen} onPieceDrop={onPieceDrop} />
+    <div style={{ display: 'flex', justifyContent: 'center', padding: 100 }}>
+      {/* 왼쪽: 보드 및 수 기록 (좌우 배치) */}
+      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start'}}>
+        <Board width={BOARD_WIDTH} fen={fen} onPieceDrop={onPieceDrop} />
+        <div style={{ marginLeft: 20, width:150, maxHeight: 450, overflowY: 'auto' }}>
+          <History history={history} />
+        </div>
       </div>
-      <div style={{ width: 250 }}>
+
+      {/* 오른쪽: 상태 메시지 + 분석 패널 */}
+      <div style={{ width: 1200, marginLeft: 20, overflowY: 'auto' }}>
         <StatusMessage status={status} />
-        <History history={history} />
         <AnalysisPanel engine={engine} fen={fen} />
       </div>
     </div>
