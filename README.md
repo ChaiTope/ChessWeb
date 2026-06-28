@@ -1,55 +1,77 @@
 # ChessWeb
 
-온라인 체스 플레이와 Stockfish 기반 분석을 실험해본 웹 프로젝트입니다.
+ChessWeb is a learning project for experimenting with a browser-based chess board, legal move handling, and Stockfish analysis in a React frontend.
 
-React로 체스보드 UI를 구성하고, `chess.js`로 기본적인 체스 규칙과 수 기록을 처리합니다. 프론트엔드에서는 Stockfish Web Worker를 사용해 후보 수와 평가 그래프를 표시하고, 백엔드에는 FastAPI 기반의 간단한 `bestmove` API 실험 코드가 포함되어 있습니다.
+This project is not a complete online chess service. The current implementation focuses on:
 
-## Features
+- rendering a chess board in React
+- validating moves with `chess.js`
+- showing move history and basic game status
+- running Stockfish in the frontend through a Web Worker
+- displaying simple engine suggestions and an evaluation graph
 
-* 체스보드에서 말 이동
-* `chess.js` 기반 합법 수 처리
-* 수 기록 표시
-* Stockfish 기반 추천 수 확인
-* Depth / target Elo 설정
-* Recharts 기반 평가 그래프 표시
-* FastAPI를 이용한 Stockfish best move API 실험
+The backend FastAPI code is kept as an experimental Stockfish `bestmove` API prototype. It is not currently connected to the frontend.
+
+## Main Features
+
+- Chess board UI using `react-chessboard`
+- Initial piece placement from `chess.js`
+- Drag-and-drop piece movement
+- Legal move validation through `chess.js`
+- Move history display in SAN notation
+- Check and checkmate status messages
+- Frontend Stockfish Web Worker integration
+- Engine suggestion display with MultiPV-style output
+- Depth and target Elo controls for engine analysis
+- Evaluation graph rendered with Recharts
+- Experimental FastAPI backend endpoint for Stockfish best move lookup
 
 ## Tech Stack
 
 ### Frontend
 
-* React
-* JavaScript
-* chess.js
-* react-chessboard
-* Stockfish.js
-* Recharts
+- React
+- JavaScript
+- chess.js
+- react-chessboard
+- Stockfish.js / Stockfish Web Worker
+- Recharts
 
-### Backend
+### Backend Experimental
 
-* Python
-* FastAPI
-* python-chess
-* Stockfish UCI engine
+- Python
+- FastAPI
+- python-chess
+- Local Stockfish UCI engine executable
 
 ## Project Structure
 
 ```text
 ChessWeb/
 ├─ backend/
-│  └─ main.py              # FastAPI bestmove API experiment
-└─ frontend/
-   ├─ public/
-   │  └─ stockfish.js      # Stockfish worker file
-   └─ src/
-      ├─ App.js
-      ├─ Board.js
-      ├─ AnalysisPanel.js
-      ├─ History.js
-      └─ StatusMessage.js
+│  ├─ main.py              # Experimental FastAPI bestmove API
+│  └─ requirements.txt     # Backend dependencies
+├─ frontend/
+│  ├─ public/
+│  │  ├─ index.html
+│  │  └─ stockfish.js      # Stockfish worker file used by the frontend
+│  ├─ src/
+│  │  ├─ App.js            # Main game state, move handling, engine setup
+│  │  ├─ AnalysisPanel.js  # Stockfish output parsing and evaluation graph
+│  │  ├─ Board.js          # Chessboard rendering
+│  │  ├─ History.js        # Move history display
+│  │  ├─ StatusMessage.js  # Game status display
+│  │  └─ index.js
+│  ├─ package.json
+│  └─ package-lock.json
+└─ README.md
 ```
 
-## Run Frontend
+## Running the Project
+
+### Frontend
+
+Install dependencies and start the React development server:
 
 ```bash
 cd frontend
@@ -57,29 +79,71 @@ npm install
 npm start
 ```
 
-The React development server runs at:
+The frontend development server runs at:
 
 ```text
 http://localhost:3000
 ```
 
-## Run Backend
+On Windows PowerShell, if script execution policy blocks `npm`, use `npm.cmd`:
 
-The backend is an experimental FastAPI server for requesting a Stockfish best move from a FEN string.
+```bash
+npm.cmd install
+npm.cmd start
+```
+
+### Backend Experimental
+
+The backend is an experimental FastAPI server for requesting a Stockfish best move from a FEN string. It is not currently used by the React frontend.
+
+Install backend dependencies:
 
 ```bash
 cd backend
+pip install -r requirements.txt
+```
+
+Run the server:
+
+```bash
 uvicorn main:app --reload
 ```
 
-Current backend code expects a local Windows Stockfish executable path:
+Current backend code expects a local Windows Stockfish executable at:
 
 ```text
 C:\Program Files\stockfish\stockfish-windows-x86-64-avx2
 ```
 
-If Stockfish is installed elsewhere, update the path in `backend/main.py`.
+If Stockfish is installed elsewhere, update the path in `backend/main.py` before running the backend.
 
-## Notes
+## Implemented Behavior
 
-This repository is a learning project for connecting a chess UI, move validation, engine analysis, and a simple API. It is not a completed production chess service.
+- The board starts from the standard chess initial position.
+- Pieces can be moved by drag and drop.
+- Move legality, turn order, check, checkmate, castling, en passant, and promotion legality are delegated to `chess.js`.
+- Promotion currently uses automatic queen promotion.
+- Successful moves update the FEN state and append SAN notation to the move history.
+- The frontend creates a Stockfish Web Worker from `frontend/public/stockfish.js`.
+- The analysis panel requests engine analysis for the current FEN and selected depth.
+- The analysis panel displays up to three suggested moves and a simple evaluation graph.
+
+## Known Issues
+
+- Online and multiplayer features are not implemented.
+- Promotion currently always promotes to a queen; there is no promotion piece selection UI.
+- Stalemate and draw messages are incomplete or missing.
+- Stockfish analysis results may mix with output from a previous search because searches are not explicitly stopped or correlated.
+- The backend Stockfish API is experimental and is not connected to the frontend.
+- Running the backend requires configuring the local Stockfish executable path.
+- There are no test files yet.
+
+## Planned Improvements
+
+- Add clearer draw, stalemate, and game-over status messages.
+- Add a promotion selection UI.
+- Prevent stale Stockfish analysis output from updating the current position.
+- Decide whether to connect, refactor, or remove the experimental backend API.
+- Move backend Stockfish path configuration to an environment variable or config file.
+- Add focused tests for move handling and analysis output parsing.
+- Improve README and setup notes as the project structure becomes more stable.
