@@ -9,6 +9,15 @@ import AnalysisPanel from './AnalysisPanel';
 const BOARD_WIDTH     = 350;
 const BOARD_MAX_WIDTH = 800;
 
+function getGameStatus(game) {
+  if (game.isCheckmate()) return '🛑 체크메이트! 게임 종료';
+  if (game.isStalemate()) return '스테일메이트! 무승부';
+  if (game.isDraw()) return '무승부';
+  if (game.isGameOver()) return '게임 종료';
+  if (game.isCheck()) return '🔔 체크!';
+  return '';
+}
+
 export default function App() {
   const game = useRef(new Chess());
   const [fen, setFen]         = useState(game.current.fen());
@@ -33,7 +42,6 @@ export default function App() {
     const eng = new Worker(workerPath);
     eng.postMessage('uci');
     eng.postMessage('setoption name UCI_LimitStrength value true');
-    eng.postMessage(`setoption name UCI_Elo value ${elo}`);
     eng.postMessage('setoption name MultiPV value 3');
     setEngine(eng);
     return () => eng.terminate();
@@ -66,9 +74,7 @@ export default function App() {
     // 성공 처리
     setFen(game.current.fen());
     setHistory(old => [...old, move.san]);
-    if (game.current.isCheckmate())       setStatus('🛑 체크메이트! 게임 종료');
-    else if (game.current.isCheck())      setStatus('🔔 체크!');
-    else                                   setStatus('');
+    setStatus(getGameStatus(game.current));
     return true;
   }, []);
 

@@ -19,7 +19,7 @@ The backend FastAPI code is kept as an experimental Stockfish `bestmove` API pro
 - Drag-and-drop piece movement
 - Legal move validation through `chess.js`
 - Move history display in SAN notation
-- Check and checkmate status messages
+- Check, checkmate, stalemate, and draw status messages
 - Frontend Stockfish Web Worker integration
 - Engine suggestion display with MultiPV-style output
 - Depth and target Elo controls for engine analysis
@@ -121,9 +121,10 @@ If Stockfish is installed elsewhere, update the path in `backend/main.py` before
 
 - The board starts from the standard chess initial position.
 - Pieces can be moved by drag and drop.
-- Move legality, turn order, check, checkmate, castling, en passant, and promotion legality are delegated to `chess.js`.
+- Move legality, turn order, check, checkmate, stalemate, draw, castling, en passant, and promotion legality are delegated to `chess.js`.
 - Promotion currently uses automatic queen promotion.
 - Successful moves update the FEN state and append SAN notation to the move history.
+- Game status messages are shown for check, checkmate, stalemate, draw, and other game-over states.
 - The frontend creates a Stockfish Web Worker from `frontend/public/stockfish.js`.
 - The analysis panel requests engine analysis for the current FEN and selected depth.
 - The analysis panel displays up to three suggested moves and a simple evaluation graph.
@@ -132,7 +133,6 @@ If Stockfish is installed elsewhere, update the path in `backend/main.py` before
 
 - Online and multiplayer features are not implemented.
 - Promotion currently always promotes to a queen; there is no promotion piece selection UI.
-- Stalemate and draw messages are incomplete or missing.
 - Stockfish analysis results may mix with output from a previous search because searches are not explicitly stopped or correlated.
 - The backend Stockfish API is experimental and is not connected to the frontend.
 - Running the backend requires configuring the local Stockfish executable path.
@@ -140,7 +140,8 @@ If Stockfish is installed elsewhere, update the path in `backend/main.py` before
 
 ## Planned Improvements
 
-- Add clearer draw, stalemate, and game-over status messages.
+- Add legal move highlights when a piece is selected, using `chess.js` legal move data to show available squares with dots or visual highlights similar to chess.com.
+- Add undo move support so users can try lines during study or analysis and return to previous positions while keeping FEN state and move history in sync.
 - Add a promotion selection UI.
 - Prevent stale Stockfish analysis output from updating the current position.
 - Decide whether to connect, refactor, or remove the experimental backend API.
