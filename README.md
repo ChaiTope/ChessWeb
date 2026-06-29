@@ -8,7 +8,7 @@ This project is not a complete online chess service. The current implementation 
 - validating moves with `chess.js`
 - showing move history and basic game status
 - running Stockfish in the frontend through a Web Worker
-- displaying simple engine suggestions and an evaluation graph
+- displaying engine suggestions, a best-move arrow, and a compact evaluation bar
 
 The backend FastAPI code is kept as an experimental Stockfish `bestmove` API prototype. It is not currently connected to the frontend.
 
@@ -17,13 +17,19 @@ The backend FastAPI code is kept as an experimental Stockfish `bestmove` API pro
 - Chess board UI using `react-chessboard`
 - Initial piece placement from `chess.js`
 - Drag-and-drop piece movement
+- Click-based legal move highlights
+- Capture-square highlighting
+- Undo move support
+- Board flip support
 - Legal move validation through `chess.js`
 - Move history display in SAN notation
 - Check, checkmate, stalemate, and draw status messages
 - Frontend Stockfish Web Worker integration
 - Engine suggestion display with MultiPV-style output
+- Best move arrow overlay on the board
+- Evaluation bar showing white/black advantage
 - Depth and target Elo controls for engine analysis
-- Evaluation graph rendered with Recharts
+- Responsive analysis-board layout
 - Experimental FastAPI backend endpoint for Stockfish best move lookup
 
 ## Tech Stack
@@ -35,7 +41,6 @@ The backend FastAPI code is kept as an experimental Stockfish `bestmove` API pro
 - chess.js
 - react-chessboard
 - Stockfish.js / Stockfish Web Worker
-- Recharts
 
 ### Backend Experimental
 
@@ -57,7 +62,8 @@ ChessWeb/
 │  │  └─ stockfish.js      # Stockfish worker file used by the frontend
 │  ├─ src/
 │  │  ├─ App.js            # Main game state, move handling, engine setup
-│  │  ├─ AnalysisPanel.js  # Stockfish output parsing and evaluation graph
+│  │  ├─ AnalysisPanel.js  # Stockfish output parsing, suggestions, evaluation bar
+│  │  ├─ App.css           # Frontend layout and board/analysis styling
 │  │  ├─ Board.js          # Chessboard rendering
 │  │  ├─ History.js        # Move history display
 │  │  ├─ StatusMessage.js  # Game status display
@@ -121,30 +127,37 @@ If Stockfish is installed elsewhere, update the path in `backend/main.py` before
 
 - The board starts from the standard chess initial position.
 - Pieces can be moved by drag and drop.
+- Clicking a current-turn piece selects it and shows legal destination squares.
+- Legal non-capture moves are shown with dot highlights, while capture moves use a stronger capture highlight.
+- Selecting another valid current-turn piece updates the highlighted legal moves.
+- Clicking an invalid square clears the current selection and highlights.
 - Move legality, turn order, check, checkmate, stalemate, draw, castling, en passant, and promotion legality are delegated to `chess.js`.
 - Promotion currently uses automatic queen promotion.
-- Successful moves update the FEN state and append SAN notation to the move history.
+- Successful moves update the FEN state, clear highlights, and append SAN notation to the move history.
+- Undo uses `chess.js` undo state so the visible board, FEN, turn, move history, and engine position stay synchronized.
 - Game status messages are shown for check, checkmate, stalemate, draw, and other game-over states.
 - The frontend creates a Stockfish Web Worker from `frontend/public/stockfish.js`.
 - The analysis panel requests engine analysis for the current FEN and selected depth.
-- The analysis panel displays up to three suggested moves and a simple evaluation graph.
+- The analysis panel displays up to three suggested moves, the current best move, depth, turn, and evaluation.
+- The best move is shown on the board with an arrow overlay.
+- The evaluation bar maps centipawn scores to a clamped white/black advantage display.
+- The board can be flipped, and highlights plus engine arrows follow the current board orientation.
 
 ## Known Issues
 
 - Online and multiplayer features are not implemented.
 - Promotion currently always promotes to a queen; there is no promotion piece selection UI.
-- Stockfish analysis results may mix with output from a previous search because searches are not explicitly stopped or correlated.
+- Mate score display is basic and may need more detailed handling for polished analysis output.
 - The backend Stockfish API is experimental and is not connected to the frontend.
 - Running the backend requires configuring the local Stockfish executable path.
 - There are no test files yet.
 
 ## Planned Improvements
 
-- Add legal move highlights when a piece is selected, using `chess.js` legal move data to show available squares with dots or visual highlights similar to chess.com.
-- Add undo move support so users can try lines during study or analysis and return to previous positions while keeping FEN state and move history in sync.
 - Add a promotion selection UI.
-- Prevent stale Stockfish analysis output from updating the current position.
+- Refine mate score handling and display.
+- Remove unused dependencies if the evaluation graph remains replaced by the evaluation bar.
 - Decide whether to connect, refactor, or remove the experimental backend API.
 - Move backend Stockfish path configuration to an environment variable or config file.
-- Add focused tests for move handling and analysis output parsing.
+- Add focused tests for move handling, undo behavior, highlighting, and analysis output parsing.
 - Improve README and setup notes as the project structure becomes more stable.
