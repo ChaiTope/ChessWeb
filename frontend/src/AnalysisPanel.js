@@ -1,32 +1,49 @@
 // src/AnalysisPanel.js
 import React, { useEffect, useState } from 'react';
 import { Chess } from 'chess.js';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid
-} from 'recharts';
 
-export default function AnalysisPanel({ engine, fen, depth }) {
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function formatEval(cp, mate) {
+  if (mate !== null) return `M${mate}`;
+  if (cp === null) return '—';
+  const pawns = cp / 100;
+  return `${pawns >= 0 ? '+' : ''}${pawns.toFixed(2)}`;
+}
+
+function getWhiteRatio(cp, mate) {
+  if (mate !== null) return mate > 0 ? 95 : 5;
+  if (cp === null) return 50;
+  const normalized = clamp(cp / 600, -1, 1);
+  return clamp(50 + normalized * 45, 5, 95);
+}
+
+export default function AnalysisPanel({ engine, fen, depth, turnLabel, onBestMoveChange }) {
   const [suggestions, setSuggestions] = useState([null, null, null]);
-  const [evalHistory, setEvalHistory] = useState([]);
+  const [evaluation, setEvaluation] = useState({ cp: null, mate: null, depth: null });
+  const [engineStatus, setEngineStatus] = useState('분석 준비 중');
 
   useEffect(() => {
     if (!engine) return;
 
     // 새로운 위치/깊이마다 초기화
     setSuggestions([null, null, null]);
-    setEvalHistory([]);
+    setEvaluation({ cp: null, mate: null, depth: null });
+    setEngineStatus('분석 중...');
+    onBestMoveChange(null);
 
+    engine.postMessage('stop');
     engine.postMessage('uci');
     engine.postMessage('setoption name MultiPV value 3');
     engine.postMessage('position fen ' + fen);
     engine.postMessage(`go depth ${depth}`);
 
+    let isCurrentSearch = true;
+
     const handler = (event) => {
+      if (!isCurrentSearch) return;
       const line = (event.data || event).toString();
       if (!line.startsWith('info depth')) return;
 
@@ -34,11 +51,13 @@ export default function AnalysisPanel({ engine, fen, depth }) {
       const d      = parseInt(parts[2], 10);
       const cpIdx  = parts.indexOf('cp');
       const cp     = cpIdx > -1 ? parseInt(parts[cpIdx + 1], 10) : null;
+      const mateIdx = parts.indexOf('mate');
+      const mate    = mateIdx > -1 ? parseInt(parts[mateIdx + 1], 10) : null;
       const mpIdx  = parts.indexOf('multipv');
       const rank   = mpIdx > -1 ? parseInt(parts[mpIdx + 1], 10) : 1;
       const pvIdx  = parts.indexOf('pv');
       const uci    = pvIdx > -1 ? parts[pvIdx + 1] : null;
-      if (isNaN(d) || cp === null || !uci || rank < 1 || rank > 3) return;
+      if (isNaN(d) || (cp === null && mate === null) || !uci || rank < 1 || rank > 3) return;
 
       // **Chess.js 인스턴스 생성**
       const tmp = new Chess(fen);
@@ -57,61 +76,85 @@ export default function AnalysisPanel({ engine, fen, depth }) {
         promotion: 'q',
       });
       const san = mobj?.san || uci;
+      const score = formatEval(cp, mate);
 
       // 후보 수 저장
       setSuggestions(prev => {
         const next = [...prev];
-        next[rank - 1] = { rank, san, cp };
+        next[rank - 1] = { rank, san, uci, score };
         return next;
       });
-
-      // centi-pawn → 흑 승률 변환
-      const whiteWin = 1 / (1 + Math.pow(10, -cp / 400)) * 100;
-      const blackWin = 100 - whiteWin;
-      setEvalHistory(hist => {
-        const last = hist[hist.length - 1];
-        if (last?.depth === d) {
-          // 같은 depth 중복 방지
-          return [...hist.slice(0, -1), { depth: d, blackWin: Number(blackWin.toFixed(1)) }];
-        }
-        return [...hist, { depth: d, blackWin: Number(blackWin.toFixed(1)) }];
-      });
+      if (rank === 1) {
+        onBestMoveChange({ from: uci.slice(0, 2), to: uci.slice(2, 4), san, uci });
+        setEngineStatus(`Best: ${san}`);
+        setEvaluation({ cp, mate, depth: d });
+      }
     };
 
     engine.addEventListener('message', handler);
-    return () => engine.removeEventListener('message', handler);
-  }, [engine, fen, depth]);
+    return () => {
+      isCurrentSearch = false;
+      engine.postMessage('stop');
+      engine.removeEventListener('message', handler);
+    };
+  }, [engine, fen, depth, onBestMoveChange]);
 
-  // 렌더링
+  const whiteRatio = getWhiteRatio(evaluation.cp, evaluation.mate);
+  const blackRatio = 100 - whiteRatio;
+  const evalText = formatEval(evaluation.cp, evaluation.mate);
+
   return (
-    <div style={{ marginTop: 20 }}>
-      <h3>엔진 추천수 (1~3순위)</h3>
-      <ul>
+    <div className="analysis-panel">
+      <div className="panel-heading">
+        <h3>엔진 추천수</h3>
+        <span>{engineStatus}</span>
+      </div>
+
+      <div className="eval-card">
+        <div className="eval-summary">
+          <div>
+            <span>Best move</span>
+            <strong>{suggestions[0]?.san || '—'}</strong>
+          </div>
+          <div>
+            <span>Eval</span>
+            <strong>{evalText}</strong>
+          </div>
+          <div>
+            <span>Depth</span>
+            <strong>{evaluation.depth || depth}</strong>
+          </div>
+          <div>
+            <span>Turn</span>
+            <strong>{turnLabel}</strong>
+          </div>
+        </div>
+
+        <div className="eval-bar" aria-label={`White ${whiteRatio.toFixed(0)} percent, Black ${blackRatio.toFixed(0)} percent`}>
+          <div className="eval-segment eval-white" style={{ width: `${whiteRatio}%` }}>
+            <span>White</span>
+          </div>
+          <div className="eval-segment eval-black" style={{ width: `${blackRatio}%` }}>
+            <span>Black</span>
+          </div>
+        </div>
+      </div>
+
+      <ul className="suggestion-list">
         {suggestions.map((s, i) =>
           s ? (
             <li key={i}>
-              {s.rank}. {s.san} ({s.cp >= 0 ? '+' : ''}{s.cp})
+              <strong>{s.rank}. {s.san}</strong>
+              <span>{s.score}</span>
             </li>
           ) : (
-            <li key={i} style={{ opacity: 0.5 }}>
-              {i+1}. —
+            <li key={i} className="muted">
+              <strong>{i+1}. —</strong>
+              <span>대기</span>
             </li>
           )
         )}
       </ul>
-
-      <h3>흑 승률 평가 그래프 (Depth)</h3>
-      {evalHistory.length > 0 ? (
-        <LineChart width={300} height={200} data={evalHistory}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="depth" label={{ value: 'Depth', position: 'insideBottom', offset: -5 }} />
-          <YAxis domain={[100, 0]} allowDataOverflow label={{ value: 'Black Win %', angle: -90, position: 'insideLeft' }} />
-          <Tooltip formatter={val => `${val}%`} />
-          <Line type="monotone" dataKey="blackWin" dot={false} />
-        </LineChart>
-      ) : (
-        <div>분석 중...</div>
-      )}
     </div>
   );
 }

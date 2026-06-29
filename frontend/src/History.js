@@ -2,14 +2,15 @@ import React from 'react';
 
 export default function History({ history }) {
   return (
-    <div style={{ marginTop: 20, maxHeight: '350px', overflowY: history.length > 15 ? 'auto' : 'visible' }}>
+    <div className="history-list">
       <h3>수 기록</h3>
-      <ol style={{ listStyle: 'decimal inside', margin: 0, padding: '0 1em' }}>
+      <ol>
         {history.map((mv, idx) => (
-          <li key={idx} style={{ marginBottom: '0.5em' }}>
+          <li key={idx}>
             {mv}
           </li>
         ))}
+        {history.length === 0 && <li className="muted">아직 둔 수가 없습니다.</li>}
       </ol>
     </div>
   );
